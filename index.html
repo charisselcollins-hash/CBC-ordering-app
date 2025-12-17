@@ -179,14 +179,29 @@
     const PRODUCTS = [
       // --- BAKERY ---
       {
-        id: "bakery-soul-rolls-6",
-        name: "Soul Rolls (Half Dozen)",
-        category: "Bakery",
-        subcategory: "Soul Rolls",
-        price: 18.00,
-        description: "Crispy, flavorful egg-roll style treats. Add filling details in notes.",
-        isActive: true,
-        fulfillment: "local"
+      {{
+  {
+  id: "bakery-soul-rolls-6",
+  name: "Soul Rolls (Half Dozen)",
+  category: "Bakery",
+  subcategory: "Soul Rolls",
+  price: 18.00,
+  description: "Crispy, flavorful egg-roll style treats. Choose a filling below.",
+  isActive: true,
+  fulfillment: "local",
+  options: {
+    label: "Choose a filling",
+    choices: [
+      "Jerk Chicken",
+      "Buffalo Chicken",
+      "Cheeseburger",
+      "Philly Cheesesteak",
+      "Salmon",
+      "Spinach & Feta (Veg)",
+      "Sweet Chili Shrimp"
+    ]
+  }
+},
       },
       {
         id: "bakery-cupcakes-6",
@@ -337,6 +352,11 @@
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
     }
+
+function getSelectedOption(productId) {
+  const el = document.getElementById(`opt-${productId}`);
+  return el ? el.value : "";
+}
 
     /**************************
      * CART
@@ -554,6 +574,9 @@
      * INITIALIZE APP
      **************************/
     updateBadges();
+
+
+       
     toggleDelivery();
     showPage("products");
   </script>

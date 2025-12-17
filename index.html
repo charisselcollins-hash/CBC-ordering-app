@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Char’s Blissful Creations — Ordering App</title>
+  <style>
+    :root { --pad: 14px; }
+    body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height:1.35; }
+    header { padding: 18px var(--pad); border-bottom: 1px solid #e9e9e9; }
+    header h1 { margin:0; font-size: 18px; }
+    header p { margin:6px 0 0; color:#555; font-size: 13px; }
+    nav { display:flex; gap:10px; padding: 10px var(--pad); border-bottom: 1px solid #eee; flex-wrap:wrap; }
+    nav button { padding:10px 12px; border:1px solid #ddd; border-radius: 10px; background:#fff; }
+    nav button[aria-current="page"] { border-color:#000; }
+    main { padding: 14px var(--pad) 70px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .card { border:1px solid #eee; border-radius: 14px; padding: 14px; background:#fff; }
+    .grid { display:grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 12px; }
+    @media (min-width: 720px){ .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .pillbar { display:flex; gap:8px; flex-wrap:wrap; margin: 10px 0 14px; }
+    .pillbar button { padding:8px 10px; border:1px solid #ddd; border-radius: 999px; background:#fff; font-size: 13px; }
+    .pillbar button[aria-pressed="true"]{ border-color:#000; }
+    .muted { color:#666; font-size: 13px; }
+    .price { font-weight: 700; }
+    .btn { padding:10px 12px; border:1px solid #000; border-radius: 10px; background:#000; color:#fff; }
+    .btn.secondary { background:#fff; color:#000; border-color:#ddd; }
+    .btn.danger { background:#fff; color:#b00020; border-color:#f1c7cf; }
+    .spacer { height: 10px; }
+    .line { height:1px; background:#eee; margin:12px 0; }
+    label { display:block; font-size: 13px; margin: 10px 0 6px; }
+    input, select, textarea {
+      width:100%; padding: 10px 12px; border:1px solid #ddd; border-radius: 10px; font-size: 15px;
+    }
+    textarea { min-height: 90px; }
+    footer {
+      position: fixed; left:0; right:0; bottom:0;
+      border-top: 1px solid #eee; background:#fff;
+      padding: 10px var(--pad);
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+    }
+    footer small { color:#777; }
+    .right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+    .qty { display:flex; gap:8px; align-items:center; }
+    .qty button { width:34px; height:34px; border-radius: 10px; border:1px solid #ddd; background:#fff; }
+    .badge { display:inline-block; padding: 2px 8px; border:1px solid #eee; border-radius: 999px; font-size: 12px; color:#666; }
+    .sr-only { position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden; }
+    .ok { border-color:#cfe9d7; background:#f4fff7; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Char’s Blissful Creations</h1>
+    <p class="muted">Handmade with love • Simple ordering (iPad portable version)</p>
+  </header>
+
+  <nav aria-label="Primary">
+    <button type="button" id="tabProducts" onclick="showPage('products')" aria-current="page">Products</button>
+    <button type="button" id="tabCart" onclick="showPage('cart')">Cart</button>
+    <button type="button" id="tabCheckout" onclick="showPage('checkout')">Checkout</button>
+    <button type="button" id="tabAdmin" onclick="showPage('admin')">Admin</button>
+  </nav>
+
+  <main>
+    <!-- PRODUCTS -->
+    <section id="page-products" aria-labelledby="products-title">
+      <h2 id="products-title" style="margin:0 0 6px;">Products</h2>
+      <p class="muted" style="margin:0 0 10px;">Browse by category and add items to your cart.</p>
+
+      <div class="pillbar" role="toolbar" aria-label="Product categories">
+        <button type="button" aria-pressed="true" id="catAll" onclick="setCategory('All')">All</button>
+        <button type="button" aria-pressed="false" id="catBakery" onclick="setCategory('Bakery')">Bakery</button>
+        <button type="button" aria-pressed="false" id="catDigital" onclick="setCategory('Digital')">Digital</button>
+        <button type="button" aria-pressed="false" id="catSeasonal" onclick="setCategory('Seasonal')">Seasonal</button>
+      </div>
+
+      <div id="productGrid" class="grid" aria-live="polite"></div>
+    </section>
+
+    <!-- CART -->
+    <section id="page-cart" hidden aria-labelledby="cart-title">
+      <h2 id="cart-title" style="margin:0 0 6px;">Cart</h2>
+      <p class="muted" style="margin:0 0 10px;">Review items, adjust quantities, and continue to checkout.</p>
+
+      <div id="cartList" class="grid"></div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="muted">Subtotal</div>
+            <div class="price" id="cartSubtotal">$0.00</div>
+          </div>
+          <button class="btn" type="button" onclick="showPage('checkout')">Go to Checkout</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHECKOUT -->
+    <section id="page-checkout" hidden aria-labelledby="checkout-title">
+      <h2 id="checkout-title" style="margin:0 0 6px;">Checkout</h2>
+      <p class="muted" style="margin:0 0 10px;">Enter your details and place your order.</p>
+
+      <div class="card">
+        <form id="checkoutForm" onsubmit="placeOrder(event)">
+          <div class="row">
+            <div style="flex:1; min-width:220px;">
+              <label for="custName">Full Name</label>
+              <input id="custName" name="custName" autocomplete="name" required />
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <label for="custPhone">Phone</label>
+              <input id="custPhone" name="custPhone" inputmode="tel" autocomplete="tel" required />
+            </div>
+          </div>
+
+          <label for="custEmail">Email (optional)</label>
+          <input id="custEmail" name="custEmail" inputmode="email" autocomplete="email" />
+
+          <label for="fulfillment">Pickup or Delivery</label>
+          <select id="fulfillment" name="fulfillment" onchange="toggleDelivery()">
+            <option value="pickup">Pickup</option>
+            <option value="delivery">Delivery</option>
+          </select>
+
+          <div id="deliveryFields" hidden>
+            <label for="address1">Delivery Address</label>
+            <input id="address1" name="address1" autocomplete="street-address" />
+            <label for="address2">Apt / Suite (optional)</label>
+            <input id="address2" name="address2" />
+          </div>
+
+          <label for="orderNotes">Order Notes (flavors, allergies, details)</label>
+          <textarea id="orderNotes" name="orderNotes" placeholder="Example: 6 cupcakes — 3 vanilla, 3 chocolate…"></textarea>
+
+          <div class="line"></div>
+
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div class="muted">Order Total</div>
+              <div class="price" id="checkoutTotal">$0.00</div>
+              <div class="muted" style="margin-top:4px;">(Taxes/fees not included in this portable version)</div>
+            </div>
+            <button class="btn" type="submit">Place Order</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="orderConfirmation" class="card ok" style="margin-top:12px;" hidden></div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="page-admin" hidden aria-labelledby="admin-title">
+      <h2 id="admin-title" style="margin:0 0 6px;">Admin</h2>
+      <p class="muted" style="margin:0 0 10px;">This portable version stores orders locally on this device (localStorage).</p>
+
+      <div class="row">
+        <button class="btn secondary" type="button" onclick="renderAdmin()">Refresh Orders</button>
+        <button class="btn danger" type="button" onclick="clearAllOrders()">Clear All Orders</button>
+      </div>
+
+      <div class="spacer"></div>
+      <div id="adminOrders" class="grid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>© 2025 Char’s Blissful Creations • Handmade with love</small>
+    <div class="right">
+      <span class="badge" id="cartCountBadge">Cart: 0</span>
+      <button class="btn secondary" type="button" onclick="showPage('cart')">View Cart</button>
+    </div>
+  </footer>
+
+  <script>
+    /**************************
+     * PRODUCT CATALOG (v2)
+     **************************/
+    const PRODUCTS = [
+      // --- BAKERY ---
+      {
+        id: "bakery-soul-rolls-6",
+        name: "Soul Rolls (Half Dozen)",
+        category: "Bakery",
+        subcategory: "Soul Rolls",
+        price: 18.00,
+        description: "Crispy, flavorful egg-roll style treats. Add filling details in notes.",
+        isActive: true,
+        fulfillment: "local"
+      },
+      {
+        id: "bakery-cupcakes-6",
+        name: "Cupcakes (Half Dozen)",
+        category: "Bakery",
+        subcategory: "Cupcakes",
+        price: 16.00,
+        description: "Moist cupcakes with signature buttercream. Flavor options available.",
+        isActive: true,
+        fulfillment: "local"
+      },
+
+      // --- DIGITAL ---
+      {
+        id: "digital-devotional-gg-30",
+        name: "Grace & Grounded (30-Day Devotional)",
+        category: "Digital",
+        subcategory: "Devotionals",
+        price: 12.00,
+        description: "Printable devotional + guided moments for peace, focus, and faith.",
+        isActive: true,
+        fulfillment: "digital"
+      },
+      {
+        id: "digital-planner-peace-31",
+        name: "31 Days of Peace Planner",
+        category: "Digital",
+        subcategory: "Planners",
+        price: 10.00,
+        description: "Printable planner pages to reset, reflect, and stay grounded.",
+        isActive: true,
+        fulfillment: "digital"
+      },
+
+      // --- SEASONAL ---
+      {
+        id: "seasonal-valentine-bliss-box",
+        name: "Valentine Bliss Box",
+        category: "Seasonal",
+        subcategory: "Boxes",
+        price: 35.00,
+        description: "Curated sweets box—limited seasonal availability.",
+        isActive: false,
+        fulfillment: "local"
+      }
+    ];
+
+    const ACTIVE_PRODUCTS = () => PRODUCTS.filter(p => p.isActive);
+
+    /**************************
+     * STATE (cart + orders)
+     **************************/
+    const STORAGE_KEYS = {
+      cart: "cbc_cart_v1",
+      orders: "cbc_orders_v1"
+    };
+
+    let selectedCategory = "All";
+
+    function loadCart() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.cart)) || []; }
+      catch { return []; }
+    }
+    function saveCart(cart) {
+      localStorage.setItem(STORAGE_KEYS.cart, JSON.stringify(cart));
+      updateBadges();
+    }
+    function loadOrders() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.orders)) || []; }
+      catch { return []; }
+    }
+    function saveOrders(orders) {
+      localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orders));
+    }
+
+    function money(n){ return `$${Number(n).toFixed(2)}`; }
+
+    function getFilteredProducts() {
+      const list = ACTIVE_PRODUCTS();
+      if (selectedCategory === "All") return list;
+      return list.filter(p => p.category === selectedCategory);
+    }
+
+    function setCategory(cat) {
+      selectedCategory = cat;
+      ["All","Bakery","Digital","Seasonal"].forEach(c => {
+        const btn = document.getElementById("cat" + c);
+        if (!btn) return;
+        btn.setAttribute("aria-pressed", String(c === cat));
+      });
+      renderProducts();
+    }
+
+    /**************************
+     * NAV
+     **************************/
+    function showPage(page) {
+      const pages = ["products","cart","checkout","admin"];
+      pages.forEach(p => {
+        document.getElementById(`page-${p}`).hidden = (p !== page);
+        const tab = document.getElementById(`tab${p.charAt(0).toUpperCase()}${p.slice(1)}`);
+        if (tab) tab.setAttribute("aria-current", p === page ? "page" : "false");
+      });
+
+      if (page === "products") renderProducts();
+      if (page === "cart") renderCart();
+      if (page === "checkout") renderCheckoutTotals();
+      if (page === "admin") renderAdmin();
+    }
+
+    /**************************
+     * PRODUCTS UI
+     **************************/
+    function renderProducts() {
+      const grid = document.getElementById("productGrid");
+      const products = getFilteredProducts();
+
+      if (products.length === 0) {
+        grid.innerHTML = `<div class="card"><strong>No products available</strong><div class="muted">Toggle seasonal items to active when you’re ready.</div></div>`;
+        return;
+      }
+
+      grid.innerHTML = products.map(p => `
+        <div class="card" role="article" aria-label="${escapeHtml(p.name)}">
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;">${escapeHtml(p.name)}</div>
+              <div class="muted">${escapeHtml(p.category)} • ${escapeHtml(p.subcategory || "")}</div>
+            </div>
+            <div class="price">${money(p.price)}</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="muted">${escapeHtml(p.description || "")}</div>
+          <div class="spacer"></div>
+          <div class="row" style="justify-content:space-between;">
+            <span class="badge">${p.fulfillment === "digital" ? "Digital delivery" : "Pickup/Delivery"}</span>
+            <button class="btn" type="button" onclick="addToCart('${p.id}')">Add to Cart</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    /**************************
+     * CART
+     **************************/
+    function addToCart(productId) {
+      const product = PRODUCTS.find(p => p.id === productId);
+      if (!product) return;
+
+      const cart = loadCart();
+      const existing = cart.find(i => i.productId === productId);
+
+      if (existing) existing.qty += 1;
+      else cart.push({ productId, qty: 1 });
+
+      saveCart(cart);
+      renderCart();
+      showPage("cart");
+    }
+
+    function updateQty(productId, delta) {
+      const cart = loadCart();
+      const item = cart.find(i => i.productId === productId);
+      if (!item) return;
+      item.qty += delta;
+      if (item.qty <= 0) {
+        const idx = cart.findIndex(i => i.productId === productId);
+        cart.splice(idx, 1);
+      }
+      saveCart(cart);
+      renderCart();
+    }
+
+    function removeItem(productId) {
+      const cart = loadCart().filter(i => i.productId !== productId);
+      saveCart(cart);
+      renderCart();
+    }
+
+    function cartSubtotal() {
+      const cart = loadCart();
+      let total = 0;
+      for (const i of cart) {
+        const p = PRODUCTS.find(x => x.id === i.productId);
+        if (!p) continue;
+        total += p.price * i.qty;
+      }
+      return total;
+    }
+
+    function renderCart() {
+      const cart = loadCart();
+      const list = document.getElementById("cartList");
+
+      if (cart.length === 0) {
+        list.innerHTML = `<div class="card"><strong>Your cart is empty</strong><div class="muted">Add something delicious (or a digital download) from Products.</div></div>`;
+      } else {
+        list.innerHTML = cart.map(i => {
+          const p = PRODUCTS.find(x => x.id === i.productId);
+          if (!p) return "";
+          return `
+            <div class="card">
+              <div class="row" style="justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <div style="font-weight:700;">${escapeHtml(p.name)}</div>
+                  <div class="muted">${escapeHtml(p.category)} • ${escapeHtml(p.subcategory || "")}</div>
+                  <div class="spacer"></div>
+                  <div class="price">${money(p.price)} <span class="muted">each</span></div>
+                </div>
+                <button class="btn danger" type="button" onclick="removeItem('${p.id}')">Remove</button>
+              </div>
+
+              <div class="line"></div>
+
+              <div class="row" style="justify-content:space-between;">
+                <div class="qty" aria-label="Quantity controls for ${escapeHtml(p.name)}">
+                  <button type="button" onclick="updateQty('${p.id}', -1)" aria-label="Decrease quantity">−</button>
+                  <strong aria-live="polite">${i.qty}</strong>
+                  <button type="button" onclick="updateQty('${p.id}', 1)" aria-label="Increase quantity">+</button>
+                </div>
+                <div class="price">${money(p.price * i.qty)}</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      document.getElementById("cartSubtotal").textContent = money(cartSubtotal());
+      renderCheckoutTotals();
+      updateBadges();
+    }
+
+    function updateBadges() {
+      const cart = loadCart();
+      const count = cart.reduce((sum, i) => sum + i.qty, 0);
+      document.getElementById("cartCountBadge").textContent = `Cart: ${count}`;
+    }
+
+    /**************************
+     * CHECKOUT
+     **************************/
+    function renderCheckoutTotals() {
+      document.getElementById("checkoutTotal").textContent = money(cartSubtotal());
+    }
+
+    function toggleDelivery() {
+      const value = document.getElementById("fulfillment").value;
+      const deliveryFields = document.getElementById("deliveryFields");
+      deliveryFields.hidden = (value !== "delivery");
+
+      // Make address required only if delivery
+      document.getElementById("address1").required = (value === "delivery");
+    }
+
+    function placeOrder(e) {
+      e.preventDefault();
+
+      const cart = loadCart();
+      if (cart.length === 0) {
+        alert("Your cart is empty. Add items before placing an order.");
+        showPage("products");
+        return;
+      }
+
+      const form = e.target;
+      const data = new FormData(form);
+
+      const order = {
+        id: `CBC-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        customer: {
+          name: data.get("custName"),
+          phone: data.get("custPhone"),
+          email: data.get("custEmail") || ""
+        },
+        fulfillment: data.get("fulfillment"),
+        address: data.get("fulfillment") === "delivery" ? {
+          address1: data.get("address1"),
+          address2: data.get("address2") || ""
+        } : null,
+        notes: data.get("orderNotes") || "",
+        items: cart.map(i => {
+          const p = PRODUCTS.find(x => x.id === i.productId);
+          return { productId: i.productId, name: p?.name || i.productId, price: p?.price || 0, qty: i.qty };
+        }),
+        subtotal: cartSubtotal()
+      };
+
+      const orders = loadOrders();
+      orders.unshift(order);
+      saveOrders(orders);
+
+      // Clear cart
+      saveCart([]);
+
+      // Confirmation
+      const box = document.getElementById("orderConfirmation");
+      box.hidden = false;
+      box.innerHTML = `
+        <strong>Order placed!</strong>
+        <div class="spacer"></div>
+        <div><span class="muted">Order ID:</span> <strong>${escapeHtml(order.id)}</strong></div>
+        <div><span class="muted">Total:</span> <strong>${money(order.subtotal)}</strong></div>
+        <div class="spacer"></div>
+        <div class="muted">This portable version stores orders on this iPad. View it in Admin.</div>
+      `;
+
+      form.reset();
+      toggleDelivery();
+      renderCart();
+      showPage("checkout");
+    }
+
+    /**************************
+     * ADMIN
+     **************************/
+    function renderAdmin() {
+      const orders = loadOrders();
+      const wrap = document.getElementById("adminOrders");
+
+      if (orders.length === 0) {
+        wrap.innerHTML = `<div class="card"><strong>No orders yet</strong><div class="muted">Place a test order to see it here.</div></div>`;
+        return;
+      }
+
+      wrap.innerHTML = orders.map(o => `
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div style="font-weight:700;">${escapeHtml(o.id)}</div>
+              <div class="muted">${new Date(o.createdAt).toLocaleString()}</div>
+              <div class="spacer"></div>
+              <div><span class="muted">Customer:</span> ${escapeHtml(o.customer.name)} • ${escapeHtml(o.customer.phone)}</div>
+              <div><span class="muted">Fulfillment:</span> ${escapeHtml(o.fulfillment)}</div>
+              ${o.address ? `<div><span class="muted">Address:</span> ${escapeHtml(o.address.address1)} ${escapeHtml(o.address.address2 || "")}</div>` : ""}
+              ${o.notes ? `<div class="spacer"></div><div class="muted"><strong>Notes:</strong> ${escapeHtml(o.notes)}</div>` : ""}
+            </div>
+            <div class="price">${money(o.subtotal)}</div>
+          </div>
+          <div class="line"></div>
+          <div class="muted"><strong>Items:</strong></div>
+          <ul style="margin:8px 0 0; padding-left:18px;">
+            ${o.items.map(it => `<li>${escapeHtml(it.name)} — ${it.qty} × ${money(it.price)}</li>`).join("")}
+          </ul>
+        </div>
+      `).join("");
+    }
+
+    function clearAllOrders() {
+      if (!confirm("Clear all stored orders on this iPad?")) return;
+      saveOrders([]);
+      renderAdmin();
+    }
+
+    /**************************
+     * INITIALIZE APP
+     **************************/
+    updateBadges();
+    toggleDelivery();
+    showPage("products");
+  </script>
+</body>
+</html>
